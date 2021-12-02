@@ -3,6 +3,8 @@
 import { reactive, ref, onMounted } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { Texture } from 'three';
+let dialogVisable = ref(false);
 const init = () => {
   // 创建场景
   const scene = new THREE.Scene();
@@ -35,11 +37,44 @@ const init = () => {
   const chickenSize = 15;
   // 放大
   const zoom = 2;
-  const treeHight = [20, 30, 40];
   const positionWidth = 42;
   const columns = 17;
-  const boardWidth = positionWidth * columns;
 
+  // 小汽车的车窗纹理
+  // 前
+  const carFrontTexture = new Texture();
+  // 后
+  // 左
+  //右
+  class Texture {
+    constructor(
+      width: number,
+      height: number,
+      rects: [{ x: number; y: number; w: number; h: number }]
+    ) {
+      // 创建canvas 对象
+      const canvas = document.createElement('canvas');
+      // 设置canvas对象的宽度 和 高度
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d') as CanvasRenderingContext2D;
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, width, height);
+      context.fillStyle = 'rgba(0,0,0,0.5)';
+      rects.forEach((rect) => {
+        context.fillRect(rect.x, rect.y, rect.w, rect.h);
+      });
+      return;
+    }
+  }
+  const treeHight = [20, 30, 40]; // 树的高度
+  const laneSpeeds = [2, 2.5, 3]; // 车辆的移动速度
+  const vechicleColors = [0xa52523, 0xbdb638, 0x78b14b]; // 车厢的颜色
+  const laneTypes = ['car', 'truck', 'forest']; // 车道类型
+  const boardWidth = positionWidth * columns;
+  let chooseMesh = null; // 已选中模型
+  // 鼠标选中模型列表
+  let intersectsArr: any = [];
   class Chicken {
     constructor() {
       const chicken = new THREE.Group(); // group 是一个多个网格的组
@@ -163,7 +198,47 @@ const init = () => {
       return road;
     }
   }
+  // 卡车模型实体
+  class car {
+    constructor() {
+      const car = new THREE.Group();
+      // 车顶
+      const carTop = new THREE.Mesh(new THREE.BoxBufferGeometry());
+      // 车身
+      // 车轱辘
+    }
+  }
+  // 小汽车模型实体
+  // 广告牌模型实体
 
+  class Board {
+    constructor() {
+      // 创建一个组
+      const board = new THREE.Group();
+      // 广告牌上半部分  需要显示图片 或文字内容
+      // 下半部分为底座
+      const boardBody = new THREE.Mesh(
+        new THREE.BoxBufferGeometry(80 * zoom, 20 * zoom, 50 * zoom),
+        new THREE.MeshPhongMaterial({ color: 0x000000 })
+      );
+      boardBody.position.z = 40 * zoom;
+      boardBody.castShadow = true;
+      boardBody.receiveShadow = true;
+      board.add(boardBody);
+
+      const boardBottom = new THREE.Mesh(
+        new THREE.BoxBufferGeometry(20 * zoom, 5 * zoom, 32 * zoom),
+        new THREE.MeshPhongMaterial({ color: 0xdddddd })
+      );
+      boardBottom.position.z = 8 * zoom;
+      boardBottom.castShadow = true;
+      boardBottom.receiveShadow = true;
+
+      board.add(boardBottom);
+      intersectsArr.push(board);
+      return board;
+    }
+  }
   const chicken: any = new Chicken();
   chicken.position.x = 0; //小鸡位置初始化为0
   chicken.position.y = 0;
@@ -189,6 +264,11 @@ const init = () => {
   road.position.y = positionWidth * zoom;
   scene.add(road);
 
+  const board: any = new Board();
+  board.position.x = -100;
+  board.position.y = -21 + 20;
+  board.position.z = 20;
+  scene.add(board);
   // 创建构造器
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   renderer.setClearColor(new THREE.Color(0xdddddd));
@@ -218,12 +298,39 @@ const init = () => {
   let dom = document.getElementById('webgl-output') as HTMLElement;
   dom.appendChild(renderer.domElement);
 
+  function animate() {
+    requestAnimationFrame(animate);
+    tree3.position.x = tree3.position.x > 300 ? 150 : tree3.position.x + 1;
+    renderer.render(scene, camera);
+  }
+  requestAnimationFrame(animate);
   var controls = new OrbitControls(camera, renderer.domElement);
   // 监听控制器的鼠标事件，执行渲染内容
   controls.addEventListener('change', () => {
     renderer.render(scene, camera);
   });
+  addEventListener('click', handleBoard);
+  function handleBoard(event: any) {
+    chooseMesh = null; // 已被选中的模型
+    let Sx = event.clientX;
+    let Sy = event.clientY;
+    let x = (Sx / window.innerWidth) * 2 - 1; //归一化
+    let y = -(Sy / window.innerHeight) * 2 + 1;
+    let raycaster = new THREE.Raycaster(); // 给模型绑定点击事件，射线，用于鼠标拾取
+    raycaster.setFromCamera(new THREE.Vector2(x, y), camera); // 用一个新的原点和方向向量来更新射线（ray），X 和 Y 分量应该介于 -1 和 1 之间
+    const intersects = raycaster.intersectObjects(intersectsArr, true); // 检查射线和物体之间的所有交叉点，返回按距离排序，最接近的为第一个。true还检查所有后代
+    if (intersects.length > 0) {
+      console.log('当前存在节点');
+      dialogVisable.value = true;
+    }
+  }
 };
+
+const closeDialog = () => {
+  dialogVisable.value = false;
+};
+//
+
 onMounted(() => {
   init();
   console.log('构建三维场景');
@@ -232,6 +339,18 @@ onMounted(() => {
 
 <template>
   <div id="webgl-output"></div>
+  <div v-if="dialogVisable" @click="closeDialog" class="dialog">
+    <div>弹窗</div>
+  </div>
 </template>
 
-<style lang="scss" scoped></style>
+<style scoped>
+.dialog {
+  width: 100px;
+  height: 100px;
+  background: rgba(0, 0, 0, 0.2);
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+</style>
