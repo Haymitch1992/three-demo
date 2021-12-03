@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Texture } from 'three';
 let dialogVisable = ref(false);
+let boardText: any = ref('');
 const init = () => {
   // 创建场景
   const scene = new THREE.Scene();
@@ -40,17 +41,11 @@ const init = () => {
   const positionWidth = 42;
   const columns = 17;
 
-  // 小汽车的车窗纹理
-  // 前
-  const carFrontTexture = new Texture();
-  // 后
-  // 左
-  //右
   class Texture {
     constructor(
       width: number,
       height: number,
-      rects: [{ x: number; y: number; w: number; h: number }]
+      rects: { x: number; y: number; w: number; h: number }[]
     ) {
       // 创建canvas 对象
       const canvas = document.createElement('canvas');
@@ -64,9 +59,41 @@ const init = () => {
       rects.forEach((rect) => {
         context.fillRect(rect.x, rect.y, rect.w, rect.h);
       });
-      return;
+      return new THREE.CanvasTexture(canvas);
     }
   }
+  // 绘制广告文字
+  class Boardtxt {
+    constructor(width: number, height: number, str: string) {
+      const canvas = document.createElement('canvas');
+      // 设置canvas对象的宽度 和 高度
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d') as CanvasRenderingContext2D;
+      // context.fillStyle = '#dd33dd';
+      // context.fillRect(0, 0, width, height);
+      context.textAlign = 'center';
+      context.strokeText(str, width / 2, height / 2);
+
+      return new THREE.CanvasTexture(canvas);
+    }
+  }
+  // 小汽车的车窗纹理
+  const carFrontTexture: any = new Texture(40, 80, [
+    { x: 0, y: 10, w: 30, h: 60 },
+  ]);
+  const carBackTexture: any = new Texture(40, 80, [
+    { x: 10, y: 10, w: 30, h: 60 },
+  ]);
+  const carRightSideTexture: any = new Texture(110, 40, [
+    { x: 10, y: 0, w: 50, h: 30 },
+    { x: 70, y: 0, w: 30, h: 30 },
+  ]);
+  const carLeftSideTexture: any = new Texture(110, 40, [
+    { x: 10, y: 10, w: 50, h: 30 },
+    { x: 70, y: 10, w: 30, h: 30 },
+  ]);
+
   const treeHight = [20, 30, 40]; // 树的高度
   const laneSpeeds = [2, 2.5, 3]; // 车辆的移动速度
   const vechicleColors = [0xa52523, 0xbdb638, 0x78b14b]; // 车厢的颜色
@@ -198,28 +225,139 @@ const init = () => {
       return road;
     }
   }
-  // 卡车模型实体
-  class car {
+  class Tyre {
     constructor() {
-      const car = new THREE.Group();
-      // 车顶
-      const carTop = new THREE.Mesh(new THREE.BoxBufferGeometry());
-      // 车身
-      // 车轱辘
+      const tyre = new THREE.Mesh(
+        new THREE.CylinderGeometry(6 * zoom, 6 * zoom, 30 * zoom, 15 * zoom),
+        new THREE.MeshBasicMaterial({ color: 0x000000 })
+      );
+      return tyre;
+    }
+  }
+  // 卡车模型实体
+  class Truck {
+    constructor() {
+      // 创建卡车组
+      const truck = new THREE.Group();
+      // 创建卡车车头 方形
+      const truckHead = new THREE.Mesh(
+        new THREE.BoxBufferGeometry(30 * zoom, 30 * zoom, 30 * zoom),
+        new THREE.MeshPhongMaterial({
+          color: 0xdddddd,
+        })
+      );
+      truck.position.z = 20 * zoom;
+      truck.add(truckHead);
+
+      // 创建卡车车身
+      // 创建卡车车轮 3*个
+      const frontTyre: any = new Tyre();
+      const middleTyre: any = new Tyre();
+      const backType: any = new Tyre();
+      // 设置三个轮子的X轴 的位置
+      frontTyre.position.x = 22 * zoom;
+      frontTyre.position.z = -12 * zoom;
+      middleTyre.position.x = 4 * zoom;
+      middleTyre.position.z = -12 * zoom;
+      backType.position.x = -22 * zoom;
+      backType.position.z = -12 * zoom;
+      truck.add(frontTyre);
+      truck.add(middleTyre);
+      truck.add(backType);
+
+      return truck;
     }
   }
   // 小汽车模型实体
+  class Car {
+    constructor() {
+      const car = new THREE.Group();
+      // 车顶
+      const cabin = new THREE.Mesh( //网格模型，车顶，统一灰色
+        new THREE.BoxBufferGeometry(33 * zoom, 24 * zoom, 12 * zoom),
+        [
+          //材质
+          new THREE.MeshPhongMaterial({
+            color: 0xcccccc,
+            flatShading: true,
+            map: carBackTexture,
+          }),
+          new THREE.MeshPhongMaterial({
+            color: 0xcccccc,
+            flatShading: true,
+            map: carFrontTexture,
+          }),
+          new THREE.MeshPhongMaterial({
+            color: 0xcccccc,
+            flatShading: true,
+            map: carRightSideTexture,
+          }),
+          new THREE.MeshPhongMaterial({
+            color: 0xcccccc,
+            flatShading: true,
+            map: carLeftSideTexture,
+          }),
+          new THREE.MeshPhongMaterial({ color: 0xcccccc, flatShading: true }), // top
+          new THREE.MeshPhongMaterial({ color: 0xcccccc, flatShading: true }),
+        ] // bottom
+      );
+      cabin.position.z = (12 + 7 + 5) * zoom;
+      cabin.position.x = -5 * zoom;
+      cabin.castShadow = true;
+      cabin.receiveShadow = true;
+      car.add(cabin);
+      // 车身
+      const carbody = new THREE.Mesh(
+        new THREE.BoxBufferGeometry(66 * zoom, 30 * zoom, 14 * zoom),
+        new THREE.MeshPhongMaterial({
+          color:
+            vechicleColors[Math.floor(Math.random() * vechicleColors.length)],
+        })
+      );
+      // bot
+      carbody.position.z = (7 + 5) * zoom;
+      carbody.castShadow = true;
+      carbody.receiveShadow = true;
+      car.add(carbody);
+
+      const frontTyre: any = new Tyre();
+      frontTyre.position.z = 8 * zoom;
+      frontTyre.position.x = 18 * zoom;
+
+      const backTyre: any = new Tyre();
+      backTyre.position.z = 8 * zoom;
+      backTyre.position.x = -18 * zoom;
+      car.add(frontTyre);
+      car.add(backTyre);
+
+      return car;
+      // 车轱辘
+    }
+  }
+
   // 广告牌模型实体
 
   class Board {
-    constructor() {
+    constructor(boardText: string) {
       // 创建一个组
       const board = new THREE.Group();
       // 广告牌上半部分  需要显示图片 或文字内容
       // 下半部分为底座
       const boardBody = new THREE.Mesh(
         new THREE.BoxBufferGeometry(80 * zoom, 20 * zoom, 50 * zoom),
-        new THREE.MeshPhongMaterial({ color: 0x000000 })
+        [
+          new THREE.MeshPhongMaterial({ color: 0x000000, flatShading: true }),
+          new THREE.MeshPhongMaterial({ color: 0x000000, flatShading: true }),
+          new THREE.MeshPhongMaterial({ color: 0x000000, flatShading: true }),
+          new THREE.MeshPhongMaterial({
+            color: 0x000000,
+            flatShading: true,
+            map: new Boardtxt(80, 50, boardText) as any,
+          }),
+          new THREE.MeshPhongMaterial({ color: 0x000000, flatShading: true }),
+          new THREE.MeshPhongMaterial({ color: 0x000000, flatShading: true }),
+        ]
+        // new THREE.MeshPhongMaterial({ color: 0x000000 })
       );
       boardBody.position.z = 40 * zoom;
       boardBody.castShadow = true;
@@ -233,8 +371,9 @@ const init = () => {
       boardBottom.position.z = 8 * zoom;
       boardBottom.castShadow = true;
       boardBottom.receiveShadow = true;
-
+      board.name = boardText;
       board.add(boardBottom);
+
       intersectsArr.push(board);
       return board;
     }
@@ -264,11 +403,27 @@ const init = () => {
   road.position.y = positionWidth * zoom;
   scene.add(road);
 
-  const board: any = new Board();
+  const board: any = new Board('智慧车站引导屏');
   board.position.x = -100;
   board.position.y = -21 + 20;
   board.position.z = 20;
   scene.add(board);
+  const board2: any = new Board('手势识别屏');
+  board2.position.x = 500;
+  board2.position.y = -21 + 20;
+  board2.position.z = 20;
+  scene.add(board2);
+
+  const car: any = new Car();
+  car.position.x = 180;
+  car.position.y = -21 + 20;
+  car.position.z = 0;
+  scene.add(car);
+
+  const truck: any = new Truck();
+  truck.position.x = -300;
+  truck.position.y = 0;
+  scene.add(truck);
   // 创建构造器
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   renderer.setClearColor(new THREE.Color(0xdddddd));
@@ -300,7 +455,10 @@ const init = () => {
 
   function animate() {
     requestAnimationFrame(animate);
-    tree3.position.x = tree3.position.x > 300 ? 150 : tree3.position.x + 1;
+    car.position.x =
+      car.position.x > (boardWidth / 2) * zoom
+        ? -((boardWidth / 2) * zoom)
+        : car.position.x + 1;
     renderer.render(scene, camera);
   }
   requestAnimationFrame(animate);
@@ -322,6 +480,8 @@ const init = () => {
     if (intersects.length > 0) {
       console.log('当前存在节点');
       dialogVisable.value = true;
+      boardText.value = intersects[0].object?.parent?.name;
+      console.log(intersects[0].object?.parent?.name);
     }
   }
 };
@@ -339,8 +499,17 @@ onMounted(() => {
 
 <template>
   <div id="webgl-output"></div>
-  <div v-if="dialogVisable" @click="closeDialog" class="dialog">
-    <div>弹窗</div>
+  <div>
+    弹窗
+    <a-modal
+      v-model:visible="dialogVisable"
+      :title="`${boardText}`"
+      @ok="closeDialog"
+    >
+      <p>当前设备温度...</p>
+      <p>当前设备状态...</p>
+      <p>当前设备位置...</p>
+    </a-modal>
   </div>
 </template>
 

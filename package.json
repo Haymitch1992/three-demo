@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@types/three": "^0.134.0",
+    "ant-design-vue": "^2.2.8",
     "three": "^0.135.0",
     "vue": "^3.2.16"
   },
